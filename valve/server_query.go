@@ -145,7 +145,7 @@ func (this *ServerQuerier) parse_a2s_info_reply(info *ServerInfo, data []byte) e
 
 	info.InfoVersion = reader.ReadUint8()
 	switch info.InfoVersion {
-	case 0x44:
+	case 0x54:
 		// Non-steam servers seem to reply with a corrupted packet. If we send
 		// the query again, we often get the right thing, so propagate a special
 		// error up.
