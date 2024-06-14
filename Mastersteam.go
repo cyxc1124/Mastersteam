@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	batch "github.com/TowelSoftware/Mastersteam/batch"
-	valve "github.com/TowelSoftware/Mastersteam/valve"
+	batch "github.com/zeno0207/Mastersteam/batch"
+	valve "github.com/zeno0207/Mastersteam/valve"
 )
 
 var (
