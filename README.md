@@ -29,6 +29,22 @@ Visit: https://steamcommunity.com/dev/apikey
 
 ### 2. Run the Service
 
+#### Option A: Docker (Recommended)
+
+```bash
+docker run -d \
+  --name mastersteam \
+  -p 8080:8080 \
+  -e STEAM_API_KEY="YOUR_API_KEY_HERE" \
+  ghcr.io/cyxc1124/mastersteam:latest
+```
+
+Or using docker-compose:
+```bash
+export STEAM_API_KEY="YOUR_API_KEY_HERE"
+docker-compose up -d
+```
+
 **Windows (PowerShell):**
 ```powershell
 $env:STEAM_API_KEY="YOUR_API_KEY_HERE"
