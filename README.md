@@ -1,35 +1,36 @@
-Mastersteam
-=======
+# Mastersteam
 
-Mastersteam is a web API for querying servers from the Valve game server list using **Steam Web API**. 
-It's lightweight, fast, and reliable!
+[![GitHub release](https://img.shields.io/github/v/release/cyxc1124/Mastersteam)](https://github.com/cyxc1124/Mastersteam/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/cyxc1124/Mastersteam)](https://go.dev/)
+[![License](https://img.shields.io/github/license/cyxc1124/Mastersteam)](LICENSE)
+[![Docker Pulls](https://img.shields.io/docker/pulls/cyxc1124/mastersteam)](https://github.com/cyxc1124/Mastersteam/pkgs/container/mastersteam)
+
+[English](README.md) | [中文](README_CN.md)
+
+A lightweight and efficient web API for querying game servers from the Steam server list. Built with Go, providing RESTful JSON endpoints.
 
 ## ✨ Features
 
-- 🔥 **Steam Web API** - Uses official Steam Web API (Legacy UDP Master Server is deprecated)
-- ⚡ **Fast & Concurrent** - Queries 20 servers simultaneously
-- 🎮 **All Steam Games** - Supports any game with dedicated servers
-- 📊 **JSON API** - RESTful endpoints with JSON responses
-- 🔍 **Rich Data** - Server info, player counts, online players, and more
+- 🔥 **Steam Web API Integration** - Uses official Steam Web API for reliable server queries
+- ⚡ **High Performance** - Concurrent processing with configurable worker pools
+- 🎮 **Universal Support** - Works with all Steam games that have dedicated servers
+- 📊 **Rich JSON API** - RESTful endpoints with comprehensive server information
+- 🐳 **Docker Ready** - Pre-built multi-architecture Docker images
+- 🌍 **Cross-Platform** - Binaries available for Windows, Linux, and macOS
+- 🔍 **Flexible Filtering** - Search by AppID, server name, or IP address
+- 📈 **Player Information** - Get detailed player stats and online player lists
 
-## ⚠️ Important
+## 📋 Requirements
 
-**Steam API Key Required** - The legacy UDP Master Server (hl2master.steampowered.com:27011) is no longer reliable. 
-This version requires a Steam Web API key to function.
+- **Steam Web API Key** (Required) - Get yours at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+- Go 1.24+ (for building from source)
+- Docker (optional, for containerized deployment)
 
-Quick Start
------------
+> **Note:** The legacy UDP Master Server (`hl2master.steampowered.com:27011`) is deprecated and no longer reliable. This version requires a Steam Web API key.
 
-### 1. Get Steam API Key
+## 🚀 Quick Start
 
-Visit: https://steamcommunity.com/dev/apikey
-- Log in with your Steam account
-- Domain: `localhost` (or your domain)
-- Copy the generated API key
-
-### 2. Run the Service
-
-#### Option A: Docker (Recommended)
+### Option 1: Docker (Recommended)
 
 ```bash
 docker run -d \
@@ -40,198 +41,261 @@ docker run -d \
 ```
 
 Or using docker-compose:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  mastersteam:
+    image: ghcr.io/cyxc1124/mastersteam:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - STEAM_API_KEY=YOUR_API_KEY_HERE
+    restart: unless-stopped
+```
+
 ```bash
-export STEAM_API_KEY="YOUR_API_KEY_HERE"
 docker-compose up -d
 ```
+
+### Option 2: Pre-built Binaries
+
+Download the latest release for your platform from [Releases](https://github.com/cyxc1124/Mastersteam/releases).
 
 **Windows (PowerShell):**
 ```powershell
 $env:STEAM_API_KEY="YOUR_API_KEY_HERE"
-go run Mastersteam.go
+.\Mastersteam.exe
 ```
 
 **Linux/macOS:**
 ```bash
 export STEAM_API_KEY="YOUR_API_KEY_HERE"
-go run Mastersteam.go
+./Mastersteam
 ```
 
-**Or build first:**
+### Option 3: Build from Source
+
 ```bash
+# Clone the repository
+git clone https://github.com/cyxc1124/Mastersteam.git
+cd Mastersteam
+
+# Build
 go build
+
+# Run
 export STEAM_API_KEY="YOUR_API_KEY_HERE"
 ./Mastersteam
 ```
 
-### 3. Test
+## 📖 API Documentation
 
-Open browser or use curl:
+### Base URL
+```
+http://localhost:8080
+```
+
+### Endpoints
+
+#### 1. Search Servers by AppID and Name
+
+```http
+GET /search/{APP_ID}/{NAME}
+```
+
+**Parameters:**
+- `APP_ID` - Steam Application ID ([List of Steam App IDs](https://developer.valvesoftware.com/wiki/Steam_Application_IDs))
+- `NAME` - Server name to search (use `*` for wildcard)
+
+**Example:**
 ```bash
-# Search CS:GO servers
-http://localhost:8080/search/730/*
+# Search all CS:GO servers
+curl "http://localhost:8080/search/730/*"
 
-# Search by IP
-http://localhost:8080/server/8.8.8.8
-```
+# Search CS:GO servers with "dust" in name
+curl "http://localhost:8080/search/730/dust"
 
-For Application IDs, see: https://developer.valvesoftware.com/wiki/Steam_Application_IDs
-
-You can also use this it in docker.
-https://github.com/TowelSoftware/Mastersteam-docker
-
-You can now search through the browser, Curl or an from an web app
-
-#### Search on server name limited by appid
-`http://localhost:8080/search/[APP_ID]/[NAME]`
-
-#### Search by serer ip
-`http://localhost:8080/server/[IP]`
-
-```
+# Search Arma 3 official servers
 curl "http://localhost:8080/search/107410/*Bohemia%20Interactive*"
+```
 
-Would give you something like this.
+#### 2. Search Servers by IP Address
+
+```http
+GET /server/{IP}
+```
+
+**Parameters:**
+- `IP` - Server IP address (port optional)
+
+**Example:**
+```bash
+# Search by IP only
+curl "http://localhost:8080/server/192.168.1.1"
+
+# Search by IP and port
+curl "http://localhost:8080/server/192.168.1.1:27015"
+```
+
+### Response Format
+
+```json
 {
-	"data" : [{
-	"85.190.155.160:2403": {
-		"ip": "85.190.155.160:2403",
-		"protocol": 17,
-		"name": "\ufffd [ OFFICIAL ] Arma 3 Vanguard by Bohemia Interactive (EU) #02",
-		"map": "Tanoa",
-		"folder": "Arma3",
-		"game": "Vanguard 50 Power Plant",
-		"players": 2,
-		"max_players": 50,
-		"bots": 0,
-		"type": "dedicated",
-		"os": "windows",
-		"visibility": "public",
-		"vac": false,
-		"appid": 107410,
-		"game_version": "1.90.145471",
-		"port": 2402,
-		"steamid": "90124885451686921",
-		"game_mode": "bt,r190,n145381,s3,i1,mf,lf,vt,dt,tvanguar,g65545,h87a3a791,f0,c-2147483648--2147483648,pw,e0,j0,k0,",
-		"gameid": "107410",
-		"players_online": [
-			{
-				"Name": "Smith",
-				"Score": 4294967291,
-				"Duration": 2401.2808
-			},
-			{
-				"Name": "jonas",
-				"Score": 87,
-				"Duration": 2358.7737
-			}
-		]
-	},
-	"85.190.155.59:2303": {
-		"ip": "85.190.155.59:2303",
-		"protocol": 17,
-		"name": "\ufffd [ OFFICIAL ] Arma 3 EndGame by Bohemia Interactive (EU) #01",
-		"map": "Tanoa",
-		"folder": "Arma3",
-		"game": "End Game 24 Balavu",
-		"players": 0,
-		"max_players": 28,
-		"bots": 0,
-		"type": "dedicated",
-		"os": "windows",
-		"visibility": "public",
-		"vac": false,
-		"appid": 107410,
-		"game_version": "1.90.145471",
-		"port": 2302,
-		"steamid": "90124884470531080",
-		"game_mode": "bt,r190,n145381,s3,i0,mf,lf,vt,dt,tendgame,g65545,h87a3a791,f0,c14-50,pw,e0,j0,k0,",
-		"gameid": "107410"
-	}
-	...
-	}],
-	"total":72
+  "data": [{
+    "192.168.1.1:27015": {
+      "ip": "192.168.1.1:27015",
+      "protocol": 17,
+      "name": "My Awesome Server",
+      "map": "de_dust2",
+      "folder": "csgo",
+      "game": "Counter-Strike: Global Offensive",
+      "players": 12,
+      "max_players": 24,
+      "bots": 0,
+      "type": "dedicated",
+      "os": "linux",
+      "visibility": "public",
+      "vac": true,
+      "appid": 730,
+      "game_version": "1.38.7.9",
+      "port": 27015,
+      "steamid": "90123456789012345",
+      "game_mode": "casual",
+      "gameid": "730",
+      "players_online": [
+        {
+          "Name": "Player1",
+          "Score": 25,
+          "Duration": 1234.56
+        }
+      ]
+    }
+  }],
+  "total": 1
 }
 ```
 
-```
-curl "http://localhost:8080/server/85.190.158.12"
+### Error Response
 
+```json
 {
-	"data" : [{
-	"85.190.158.12:2303": {
-		"ip": "85.190.158.12:2303",
-		"protocol": 17,
-		"name": "\ufffd [ OFFICIAL ] Arma 3 CP by Bohemia Interactive (USA) #01",
-		"map": "Malden",
-		"folder": "Arma3",
-		"game": "Escape 10 Malden",
-		"players": 0,
-		"max_players": 10,
-		"bots": 0,
-		"type": "dedicated",
-		"os": "windows",
-		"visibility": "public",
-		"vac": false,
-		"appid": 107410,
-		"game_version": "1.90.145471",
-		"port": 2302,
-		"steamid": "90124960057373704",
-		"game_mode": "bt,r190,n145381,s7,i2,mf,lf,vt,dt,tescape,g65545,h87a3a791,f0,c-2147483648--2147483648,pw,e15,j0,k0,",
-		"gameid": "107410"
-	},
-	"85.190.158.12:2403": {
-		"ip": "85.190.158.12:2403",
-		"protocol": 17,
-		"name": "\ufffd [ OFFICIAL ] Arma 3 CP by Bohemia Interactive (USA) #02",
-		"map": "Malden",
-		"folder": "Arma3",
-		"game": "Combat Patrol",
-		"players": 0,
-		"max_players": 12,
-		"bots": 0,
-		"type": "dedicated",
-		"os": "windows",
-		"visibility": "public",
-		"vac": false,
-		"appid": 107410,
-		"game_version": "1.90.145471",
-		"port": 2402,
-		"steamid": "90124961543184388",
-		"game_mode": "bt,r190,n145381,s7,i1,mf,lf,vt,dt,tpatrol,g65545,h87a3a791,f0,c-2147483648--2147483648,pw,e15,j0,k0,",
-		"gameid": "107410"
-	}}],
-	"total":2
+  "error": "Invalid Steam API Key",
+  "details": "invalid API key (status 403): your Steam API key is invalid or expired",
+  "status": 403
 }
-
 ```
 
-Building
---------
+## 🛠️ Configuration
 
-1. Make sure you have Golang installed, (see: http://golang.org/)
-2. Make sure your Go environment is set up. Example:
+### Environment Variables
 
-        export GOROOT=~/tools/go
-        export GOPATH=~/go
-        export PATH="$PATH:$GOROOT/bin:$GOPATH/bin"
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `STEAM_API_KEY` | Yes | - | Your Steam Web API key |
+| `PORT` | No | 8080 | HTTP server port |
 
-3. Get the source code and its dependencies:
+### Getting a Steam API Key
 
-        go get https://github.com/TowelSoftware/Mastersteam
+1. Visit [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+2. Log in with your Steam account
+3. Enter your domain name (use `localhost` for local development)
+4. Copy the generated API key
 
-4. Build:
+## 🏗️ Building from Source
 
-        go install
+### Prerequisites
 
-5. The `Mastersteam` binary wll be in `$GOPATH/bin/`.
+- Go 1.24 or higher
+- Git
 
-Resources
----------
-https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol \
-https://developer.valvesoftware.com/wiki/Server_queries
+### Build Commands
 
-Init code and insparation
----------
-https://github.com/alliedmodders/blaster \
-https://github.com/rumblefrog/go-a2s/
+```bash
+# Clone repository
+git clone https://github.com/cyxc1124/Mastersteam.git
+cd Mastersteam
+
+# Install dependencies
+go mod download
+
+# Build for current platform
+go build -o Mastersteam
+
+# Build for specific platforms
+GOOS=linux GOARCH=amd64 go build -o Mastersteam-linux-amd64
+GOOS=windows GOARCH=amd64 go build -o Mastersteam-windows-amd64.exe
+GOOS=darwin GOARCH=arm64 go build -o Mastersteam-darwin-arm64
+```
+
+## 🐳 Docker
+
+### Pull from GitHub Container Registry
+
+```bash
+docker pull ghcr.io/cyxc1124/mastersteam:latest
+docker pull ghcr.io/cyxc1124/mastersteam:v1.0.0
+```
+
+### Build Docker Image Locally
+
+```bash
+docker build -t mastersteam:local .
+```
+
+### Supported Platforms
+
+- `linux/amd64`
+- `linux/arm64`
+
+## 📚 Common Steam App IDs
+
+| Game | App ID |
+|------|--------|
+| Counter-Strike: Global Offensive | 730 |
+| Team Fortress 2 | 440 |
+| Arma 3 | 107410 |
+| Rust | 252490 |
+| Garry's Mod | 4000 |
+| Left 4 Dead 2 | 550 |
+| Counter-Strike: Source | 240 |
+
+For a complete list, visit: [Steam Application IDs](https://developer.valvesoftware.com/wiki/Steam_Application_IDs)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the GNU General Public License v3.0 or higher - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Resources
+
+- [Steam Master Server Query Protocol](https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol)
+- [Steam Server Queries](https://developer.valvesoftware.com/wiki/Server_queries)
+- [Steam Web API Documentation](https://partner.steamgames.com/doc/webapi)
+
+## 🙏 Credits
+
+This project was inspired by:
+- [alliedmodders/blaster](https://github.com/alliedmodders/blaster)
+- [rumblefrog/go-a2s](https://github.com/rumblefrog/go-a2s)
+- [TowelSoftware/Mastersteam](https://github.com/TowelSoftware/Mastersteam)
+
+## 📧 Support
+
+If you have any questions or issues, please:
+- Open an [Issue](https://github.com/cyxc1124/Mastersteam/issues)
+- Check existing [Discussions](https://github.com/cyxc1124/Mastersteam/discussions)
+
+---
+
+<sub>Made with ❤️ by <a href="https://github.com/cyxc1124">cyxc1124</a></sub>
