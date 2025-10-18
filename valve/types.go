@@ -5,8 +5,23 @@ import (
 	"net"
 )
 
-// A list of IP addresses and ports.
+// ServerList is a list of IP addresses and ports.
 type ServerList []*net.TCPAddr
+
+// MasterQueryCallback is the callback function used when querying server lists.
+// It processes batches of server addresses received from the master server.
+type MasterQueryCallback func(batch ServerList) error
+
+// MasterQuerier defines the common interface for querying server lists.
+// Currently implemented by Steam Web API.
+type MasterQuerier interface {
+	FilterAppId(appId AppId)
+	FilterAppIds(appIds []AppId)
+	FilterName(serverName string)
+	FilterGameaddr(serverIP string)
+	Query(callback MasterQueryCallback) error
+	Close()
+}
 
 // Implements Batch.Len().
 func (this ServerList) Len() int {
