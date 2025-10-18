@@ -115,9 +115,9 @@ func (q *SteamWebAPIQuerier) Query(callback MasterQueryCallback) error {
 		case http.StatusTooManyRequests:
 			return fmt.Errorf("rate limit exceeded (status 429): too many requests to Steam API, please wait and try again")
 		case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
-			return fmt.Errorf("Steam API service error (status %d): Steam servers may be down or experiencing issues", resp.StatusCode)
+			return fmt.Errorf("steam API service error (status %d): Steam servers may be down or experiencing issues", resp.StatusCode)
 		default:
-			return fmt.Errorf("Steam Web API error (status %d): %s", resp.StatusCode, string(body))
+			return fmt.Errorf("steam Web API error (status %d): %s", resp.StatusCode, string(body))
 		}
 	}
 
