@@ -24,13 +24,13 @@ type MasterQuerier interface {
 }
 
 // Implements Batch.Len().
-func (this ServerList) Len() int {
-	return len(this)
+func (sl ServerList) Len() int {
+	return len(sl)
 }
 
 // Implements Batch.Item().
-func (this ServerList) Item(index int) interface{} {
-	return this[index]
+func (sl ServerList) Item(index int) interface{} {
+	return sl[index]
 }
 
 // The game engine (either HL1 or HL2).
@@ -52,8 +52,8 @@ const (
 )
 
 // Returns the server type as a string.
-func (this ServerType) String() string {
-	switch this {
+func (st ServerType) String() string {
+	switch st {
 	case ServerType_Dedicated:
 		return "dedicated"
 	case ServerType_Listen:
@@ -76,8 +76,8 @@ const (
 )
 
 // Returns the operating system as a string.
-func (this ServerOS) String() string {
-	switch this {
+func (so ServerOS) String() string {
+	switch so {
 	case ServerOS_Windows:
 		return "windows"
 	case ServerOS_Linux:
@@ -167,11 +167,11 @@ type ServerInfo struct {
 }
 
 // Attempt to guess the game engine version.
-func (this *ServerInfo) GameEngine() GameEngine {
-	if this.InfoVersion == S2A_INFO_GOLDSRC || this.Ext == nil {
+func (si *ServerInfo) GameEngine() GameEngine {
+	if si.InfoVersion == S2A_INFO_GOLDSRC || si.Ext == nil {
 		return GOLDSRC
 	}
-	if uint32(this.Ext.AppId) < 80 {
+	if uint32(si.Ext.AppId) < 80 {
 		return GOLDSRC
 	}
 	return SOURCE
@@ -179,11 +179,11 @@ func (this *ServerInfo) GameEngine() GameEngine {
 
 // Determines whether or not a Source server is pre-orangebox. This should
 // not be called on non-Source servers.
-func (this *ServerInfo) IsPreOrangeBox() bool {
-	if IsPreOrangeBoxApp(this.Ext.AppId) {
+func (si *ServerInfo) IsPreOrangeBox() bool {
+	if IsPreOrangeBoxApp(si.Ext.AppId) {
 		return true
 	}
-	if this.Ext.AppId == App_CSS && this.Protocol == 7 {
+	if si.Ext.AppId == App_CSS && si.Protocol == 7 {
 		return true
 	}
 	return false

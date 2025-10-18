@@ -47,7 +47,7 @@ type steamWebAPIResponse struct {
 // NewSteamWebAPIQuerier creates a new Steam Web API querier
 func NewSteamWebAPIQuerier(apiKey string) (*SteamWebAPIQuerier, error) {
 	if apiKey == "" {
-		return nil, fmt.Errorf("Steam API key is required")
+		return nil, fmt.Errorf("steam API key is required")
 	}
 
 	return &SteamWebAPIQuerier{
@@ -111,9 +111,9 @@ func (q *SteamWebAPIQuerier) Query(callback MasterQueryCallback) error {
 		// Provide specific error messages based on status code
 		switch resp.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return fmt.Errorf("Invalid API Key (status %d): Your Steam API key is invalid or expired. Get a new key from https://steamcommunity.com/dev/apikey", resp.StatusCode)
+			return fmt.Errorf("invalid API key (status %d): your Steam API key is invalid or expired, get a new key from https://steamcommunity.com/dev/apikey", resp.StatusCode)
 		case http.StatusTooManyRequests:
-			return fmt.Errorf("Rate limit exceeded (status 429): Too many requests to Steam API. Please wait and try again")
+			return fmt.Errorf("rate limit exceeded (status 429): too many requests to Steam API, please wait and try again")
 		case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
 			return fmt.Errorf("Steam API service error (status %d): Steam servers may be down or experiencing issues", resp.StatusCode)
 		default:
