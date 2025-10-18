@@ -277,10 +277,6 @@ func newServerQuerier() error {
 	// Wait for batch processing to complete.
 	bp.Finish()
 
-	if sNumServers != 0 {
-		//sOutputBuffer.WriteString("\n")
-	}
-
 	sOutputBuffer.WriteString("}],\n")
 	sOutputBuffer.WriteString(fmt.Sprintf("\t\"total\":%d\n", sNumServers))
 	sOutputBuffer.WriteString("}\n")

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 	"time"
@@ -38,11 +37,6 @@ func NewPacketReader(packet []byte) *PacketReader {
 		buffer: packet,
 		pos:    0,
 	}
-}
-
-// Debugging only.
-func (this *PacketReader) dumpRemaining() {
-	fmt.Printf("%+v\n", this.buffer[this.pos:])
 }
 
 func (this *PacketReader) canRead(size int) error {

@@ -6,7 +6,6 @@ import (
 	"compress/bzip2"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"hash/crc32"
 	"time"
 )
@@ -24,9 +23,6 @@ var ErrBadRulesReply = errors.New("bad rules reply")
 var ErrBadPlayersReply = errors.New("bad players reply")
 var ErrWrongBz2Size = errors.New("bad bz2 decompression size")
 var ErrWrongBz2Checksum = errors.New("bad bz2 checksum")
-
-// Always import fmt for debugging.
-var _ = fmt.Println
 
 // A ServerQuerier is used to issue A2S queries against an HL1/HL2 server.
 type ServerQuerier struct {
