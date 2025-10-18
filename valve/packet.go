@@ -18,13 +18,13 @@ type PacketBuilder struct {
 	bytes.Buffer
 }
 
-func (this *PacketBuilder) WriteCString(str string) {
-	this.WriteString(str)
-	this.WriteByte(0)
+func (pb *PacketBuilder) WriteCString(str string) {
+	pb.WriteString(str)
+	pb.WriteByte(0)
 }
 
-func (this *PacketBuilder) WriteBytes(bytes []byte) {
-	this.Write(bytes)
+func (pb *PacketBuilder) WriteBytes(bytes []byte) {
+	pb.Write(bytes)
 }
 
 type PacketReader struct {
@@ -39,108 +39,108 @@ func NewPacketReader(packet []byte) *PacketReader {
 	}
 }
 
-func (this *PacketReader) canRead(size int) error {
-	if size+this.pos > len(this.buffer) {
+func (pr *PacketReader) canRead(size int) error {
+	if size+pr.pos > len(pr.buffer) {
 		return ErrOutOfBounds
 	}
 	return nil
 }
 
-func (this *PacketReader) Slice(count int) []byte {
-	if this.canRead(count) != nil {
+func (pr *PacketReader) Slice(count int) []byte {
+	if pr.canRead(count) != nil {
 		return nil
 	}
-	bytes := this.buffer[this.pos : this.pos+count]
-	this.pos += count
+	bytes := pr.buffer[pr.pos : pr.pos+count]
+	pr.pos += count
 	return bytes
 }
 
-func (this *PacketReader) Pos() int {
-	return this.pos
+func (pr *PacketReader) Pos() int {
+	return pr.pos
 }
 
-func (this *PacketReader) ReadIPv4() (net.IP, error) {
-	if err := this.canRead(net.IPv4len); err != nil {
+func (pr *PacketReader) ReadIPv4() (net.IP, error) {
+	if err := pr.canRead(net.IPv4len); err != nil {
 		return nil, err
 	}
 
-	ip := net.IP(this.buffer[this.pos : this.pos+net.IPv4len])
-	this.pos += net.IPv4len
+	ip := net.IP(pr.buffer[pr.pos : pr.pos+net.IPv4len])
+	pr.pos += net.IPv4len
 	return ip, nil
 }
 
-func (this *PacketReader) ReadPort() (uint16, error) {
-	if err := this.canRead(2); err != nil {
+func (pr *PacketReader) ReadPort() (uint16, error) {
+	if err := pr.canRead(2); err != nil {
 		return 0, err
 	}
 
-	port := binary.BigEndian.Uint16(this.buffer[this.pos:])
-	this.pos += 2
+	port := binary.BigEndian.Uint16(pr.buffer[pr.pos:])
+	pr.pos += 2
 	return port, nil
 }
 
-func (this *PacketReader) ReadUint8() uint8 {
-	b := this.buffer[this.pos]
-	this.pos++
+func (pr *PacketReader) ReadUint8() uint8 {
+	b := pr.buffer[pr.pos]
+	pr.pos++
 	return b
 }
 
-func (this *PacketReader) ReadUint16() uint16 {
-	u16 := binary.LittleEndian.Uint16(this.buffer[this.pos:])
-	this.pos += 2
+func (pr *PacketReader) ReadUint16() uint16 {
+	u16 := binary.LittleEndian.Uint16(pr.buffer[pr.pos:])
+	pr.pos += 2
 	return u16
 }
 
-func (this *PacketReader) ReadUint32() uint32 {
-	u32 := binary.LittleEndian.Uint32(this.buffer[this.pos:])
-	this.pos += 4
+func (pr *PacketReader) ReadUint32() uint32 {
+	u32 := binary.LittleEndian.Uint32(pr.buffer[pr.pos:])
+	pr.pos += 4
 	return u32
 }
 
-func (this *PacketReader) ReadInt32() int32 {
-	return int32(this.ReadUint32())
+func (pr *PacketReader) ReadInt32() int32 {
+	return int32(pr.ReadUint32())
 }
 
-func (this *PacketReader) ReadUint64() uint64 {
-	u64 := binary.LittleEndian.Uint64(this.buffer[this.pos:])
-	this.pos += 8
+func (pr *PacketReader) ReadUint64() uint64 {
+	u64 := binary.LittleEndian.Uint64(pr.buffer[pr.pos:])
+	pr.pos += 8
 	return u64
 }
 
-func (r *PacketReader) ReadFloat32() float32 {
-	bits := r.ReadUint32()
+func (pr *PacketReader) ReadFloat32() float32 {
+	bits := pr.ReadUint32()
 
 	return math.Float32frombits(bits)
 }
 
-func (this *PacketReader) TryReadString() (string, bool) {
-	start := this.pos
-	for this.pos < len(this.buffer) {
-		if this.buffer[this.pos] == 0 {
-			this.pos++
-			return string(this.buffer[start : this.pos-1]), true
+func (pr *PacketReader) TryReadString() (string, bool) {
+	start := pr.pos
+	for pr.pos < len(pr.buffer) {
+		if pr.buffer[pr.pos] == 0 {
+			pr.pos++
+			return string(pr.buffer[start : pr.pos-1]), true
 		}
-		this.pos++
+		pr.pos++
 	}
 	return "", false
 }
 
-func (this *PacketReader) ReadString() string {
-	start := this.pos
+func (pr *PacketReader) ReadString() string {
+	start := pr.pos
 	for {
 		// Note: it's intended that we panic for strings that are not null
 		// terminated.
-		if this.buffer[this.pos] == 0 {
-			this.pos++
+		if pr.buffer[pr.pos] == 0 {
+			pr.pos++
 			break
 		}
-		this.pos++
+		pr.pos++
 	}
-	return string(this.buffer[start : this.pos-1])
+	return string(pr.buffer[start : pr.pos-1])
 }
 
-func (this *PacketReader) More() bool {
-	return this.pos < len(this.buffer)
+func (pr *PacketReader) More() bool {
+	return pr.pos < len(pr.buffer)
 }
 
 type UdpSocket struct {
@@ -163,71 +163,71 @@ func NewUdpSocket(address string, timeout time.Duration) (*UdpSocket, error) {
 	}, nil
 }
 
-func (this *UdpSocket) SetTimeout(timeout time.Duration) {
-	this.timeout = timeout
+func (us *UdpSocket) SetTimeout(timeout time.Duration) {
+	us.timeout = timeout
 }
 
-func (this *UdpSocket) RemoteAddr() net.Addr {
-	return this.cn.RemoteAddr()
+func (us *UdpSocket) RemoteAddr() net.Addr {
+	return us.cn.RemoteAddr()
 }
 
-func (this *UdpSocket) SetRateLimit(ratePerMinute int) {
-	this.wait = (time.Minute / time.Duration(ratePerMinute)) + time.Second
+func (us *UdpSocket) SetRateLimit(ratePerMinute int) {
+	us.wait = (time.Minute / time.Duration(ratePerMinute)) + time.Second
 }
 
-func (this *UdpSocket) extendedDeadline() time.Time {
-	return time.Now().Add(this.timeout)
+func (us *UdpSocket) extendedDeadline() time.Time {
+	return time.Now().Add(us.timeout)
 }
 
-func (this *UdpSocket) enforceRateLimit() {
-	if this.wait == 0 {
+func (us *UdpSocket) enforceRateLimit() {
+	if us.wait == 0 {
 		return
 	}
 
-	wait := this.next.Sub(time.Now())
+	wait := time.Until(us.next)
 	if wait > 0 {
 		time.Sleep(wait)
 	}
 }
 
-func (this *UdpSocket) setNextQueryTime() {
-	if this.wait != 0 {
-		this.next = time.Now().Add(this.wait)
+func (us *UdpSocket) setNextQueryTime() {
+	if us.wait != 0 {
+		us.next = time.Now().Add(us.wait)
 	}
 }
 
-func (this *UdpSocket) Send(bytes []byte) error {
-	this.enforceRateLimit()
-	defer this.setNextQueryTime()
+func (us *UdpSocket) Send(bytes []byte) error {
+	us.enforceRateLimit()
+	defer us.setNextQueryTime()
 
 	// Set timeout.
-	if this.timeout > 0 {
-		this.cn.SetWriteDeadline(this.extendedDeadline())
+	if us.timeout > 0 {
+		us.cn.SetWriteDeadline(us.extendedDeadline())
 	}
 
 	// UDP is all or nothing.
-	_, err := this.cn.Write(bytes)
+	_, err := us.cn.Write(bytes)
 	return err
 }
 
-func (this *UdpSocket) Recv() ([]byte, error) {
-	defer this.setNextQueryTime()
+func (us *UdpSocket) Recv() ([]byte, error) {
+	defer us.setNextQueryTime()
 
 	// Set timeout.
-	if this.timeout > 0 {
-		this.cn.SetReadDeadline(this.extendedDeadline())
+	if us.timeout > 0 {
+		us.cn.SetReadDeadline(us.extendedDeadline())
 	}
 
-	n, err := this.cn.Read(this.buffer[0:kMaxPacketSize])
+	n, err := us.cn.Read(us.buffer[0:kMaxPacketSize])
 	if err != nil {
 		return nil, err
 	}
 
 	buffer := make([]byte, n)
-	copy(buffer, this.buffer[:n])
+	copy(buffer, us.buffer[:n])
 	return buffer, nil
 }
 
-func (this *UdpSocket) Close() {
-	this.cn.Close()
+func (us *UdpSocket) Close() {
+	us.cn.Close()
 }

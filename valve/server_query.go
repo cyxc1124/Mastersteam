@@ -61,18 +61,18 @@ func NewServerQuerier(hostAndPort string, timeout time.Duration) (*ServerQuerier
 }
 
 // Close the socket used to query.
-func (this *ServerQuerier) Close() {
-	this.socket.Close()
+func (sq *ServerQuerier) Close() {
+	sq.socket.Close()
 }
 
 // Query a server's info via A2S_INFO.
-func (this *ServerQuerier) QueryInfo() (*ServerInfo, error) {
-	this.info = &ServerInfo{
-		Address: this.socket.RemoteAddr().String(),
+func (sq *ServerQuerier) QueryInfo() (*ServerInfo, error) {
+	sq.info = &ServerInfo{
+		Address: sq.socket.RemoteAddr().String(),
 	}
 
 	err := Try(func() error {
-		return this.a2s_info(this.info)
+		return sq.a2s_info(sq.info)
 	})
 	if err != nil && err != ErrMistakenReply {
 		return nil, err
@@ -81,51 +81,51 @@ func (this *ServerQuerier) QueryInfo() (*ServerInfo, error) {
 	// Mysteriously, Half-Life 1 servers will often reply to an A2S_INFO with
 	// two extra packets: A2S_PLAYERS and then a newer A2S_INFO. We peek for
 	// up to three extra packets with a very small timeout.
-	if err == ErrMistakenReply || this.info.InfoVersion == S2A_INFO_GOLDSRC {
+	if err == ErrMistakenReply || sq.info.InfoVersion == S2A_INFO_GOLDSRC {
 		err := Try(func() error {
-			return this.check_bad_a2s_info(this.info)
+			return sq.check_bad_a2s_info(sq.info)
 		})
 		if err == nil {
-			return this.info, nil
+			return sq.info, nil
 		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
-	return this.info, nil
+	return sq.info, nil
 }
 
-func (this *ServerQuerier) check_bad_a2s_info(info *ServerInfo) error {
-	this.socket.SetTimeout(time.Millisecond * 250)
-	defer this.socket.SetTimeout(this.timeout)
+func (sq *ServerQuerier) check_bad_a2s_info(info *ServerInfo) error {
+	sq.socket.SetTimeout(time.Millisecond * 250)
+	defer sq.socket.SetTimeout(sq.timeout)
 
-	data1, err := this.socket.Recv()
+	data1, err := sq.socket.Recv()
 	if err != nil {
 		return err
 	}
 
-	data2, err := this.socket.Recv()
+	data2, err := sq.socket.Recv()
 	if err != nil {
 		return err
 	}
 
 	// Try to decode either packet as an A2S_INFO.
-	if this.parse_a2s_info_reply(this.info, data1) == nil {
+	if sq.parse_a2s_info_reply(sq.info, data1) == nil {
 		return nil
 	}
-	return this.parse_a2s_info_reply(this.info, data2)
+	return sq.parse_a2s_info_reply(sq.info, data2)
 }
 
-func (this *ServerQuerier) a2s_info(info *ServerInfo) error {
+func (sq *ServerQuerier) a2s_info(info *ServerInfo) error {
 	var packet PacketBuilder
 	packet.WriteBytes([]byte{0xff, 0xff, 0xff, 0xff, A2S_INFO})
 	packet.WriteCString("Source Engine Query")
-	if err := this.socket.Send(packet.Bytes()); err != nil {
+	if err := sq.socket.Send(packet.Bytes()); err != nil {
 		return err
 	}
 
-	data, err := this.socket.Recv()
+	data, err := sq.socket.Recv()
 	if err != nil {
 		return err
 	}
@@ -138,20 +138,20 @@ func (this *ServerQuerier) a2s_info(info *ServerInfo) error {
 		packet.WriteBytes([]byte{
 			data[5], data[6], data[7], data[8],
 		})
-		if err := this.socket.Send(packet.Bytes()); err != nil {
+		if err := sq.socket.Send(packet.Bytes()); err != nil {
 			return err
 		}
 
-		data, err = this.socket.Recv()
+		data, err = sq.socket.Recv()
 		if err != nil {
 			return err
 		}
 	}
 
-	return this.parse_a2s_info_reply(info, data)
+	return sq.parse_a2s_info_reply(info, data)
 }
 
-func (this *ServerQuerier) parse_a2s_info_reply(info *ServerInfo, data []byte) error {
+func (sq *ServerQuerier) parse_a2s_info_reply(info *ServerInfo, data []byte) error {
 	reader := NewPacketReader(data)
 	if reader.ReadInt32() != -1 {
 		return ErrBadPacketHeader
@@ -165,16 +165,16 @@ func (this *ServerQuerier) parse_a2s_info_reply(info *ServerInfo, data []byte) e
 		// error up.
 		return ErrMistakenReply
 	case S2A_INFO_SOURCE:
-		this.parseNewInfo(reader, info)
+		sq.parseNewInfo(reader, info)
 	case S2A_INFO_GOLDSRC:
-		this.parseOldInfo(reader, info)
+		sq.parseOldInfo(reader, info)
 	default:
 		return ErrUnknownInfoVersion
 	}
 	return nil
 }
 
-func (this *ServerQuerier) parseNewInfo(reader *PacketReader, info *ServerInfo) {
+func (sq *ServerQuerier) parseNewInfo(reader *PacketReader, info *ServerInfo) {
 	info.Protocol = reader.ReadUint8()
 	info.Name = reader.ReadString()
 	info.MapName = reader.ReadString()
@@ -257,7 +257,7 @@ func (this *ServerQuerier) parseNewInfo(reader *PacketReader, info *ServerInfo) 
 	}
 }
 
-func (this *ServerQuerier) parseOldInfo(reader *PacketReader, info *ServerInfo) {
+func (sq *ServerQuerier) parseOldInfo(reader *PacketReader, info *ServerInfo) {
 	info.Address = reader.ReadString()
 	info.Name = reader.ReadString()
 	info.MapName = reader.ReadString()
@@ -307,25 +307,25 @@ func (this *ServerQuerier) parseOldInfo(reader *PacketReader, info *ServerInfo) 
 
 // Send an A2S_RULES query to the server. This returns a mapping of cvar names
 // to values.
-func (this *ServerQuerier) QueryRules() (map[string]string, error) {
+func (sq *ServerQuerier) QueryRules() (map[string]string, error) {
 	var rules map[string]string
 	var err error
 
 	// Note: must assign |err| in case there's a panic.
 	err = Try(func() error {
-		rules, err = this.queryRules()
+		rules, err = sq.queryRules()
 		return err
 	})
 
 	return rules, err
 }
 
-func (this *ServerQuerier) queryRules() (map[string]string, error) {
+func (sq *ServerQuerier) queryRules() (map[string]string, error) {
 	// Try to get a successful challenge.
 	rechallenges := 0
-	data, err := this.a2s_rules()
+	data, err := sq.a2s_rules()
 	for err == ErrConfusedChallengeReply && rechallenges < 3 {
-		data, err = this.a2s_rules()
+		data, err = sq.a2s_rules()
 		rechallenges++
 	}
 
@@ -336,29 +336,29 @@ func (this *ServerQuerier) queryRules() (map[string]string, error) {
 
 	switch int32(binary.LittleEndian.Uint32(data)) {
 	case -1:
-		return this.processRules(data, false)
+		return sq.processRules(data, false)
 	case -2:
-		full, compressed, err := this.waitForMultiPacketReply(data)
+		full, compressed, err := sq.waitForMultiPacketReply(data)
 		if err != nil {
 			return nil, err
 		}
-		return this.processRules(full, compressed)
+		return sq.processRules(full, compressed)
 	default:
 		return nil, ErrBadPacketHeader
 	}
 }
 
-func (this *ServerQuerier) a2s_rules() ([]byte, error) {
+func (sq *ServerQuerier) a2s_rules() ([]byte, error) {
 	data := []byte{
 		0xff, 0xff, 0xff, 0xff,
 		A2S_RULES,
 		0xff, 0xff, 0xff, 0xff,
 	}
-	if err := this.socket.Send(data); err != nil {
+	if err := sq.socket.Send(data); err != nil {
 		return nil, err
 	}
 
-	data, err := this.socket.Recv()
+	data, err := sq.socket.Recv()
 	if err != nil {
 		return nil, err
 	}
@@ -396,33 +396,33 @@ func (this *ServerQuerier) a2s_rules() ([]byte, error) {
 		A2S_RULES,
 		data[5], data[6], data[7], data[8],
 	}
-	if err := this.socket.Send(reply); err != nil {
+	if err := sq.socket.Send(reply); err != nil {
 		return nil, err
 	}
-	return this.socket.Recv()
+	return sq.socket.Recv()
 }
 
 // Send an A2S_PLAYER query to the server. This returns a mapping of cvar names
 // to values.
-func (this *ServerQuerier) QueryPlayers() ([]*Player, error) {
+func (sq *ServerQuerier) QueryPlayers() ([]*Player, error) {
 	var players []*Player
 	var err error
 
 	// Note: must assign |err| in case there's a panic.
 	err = Try(func() error {
-		players, err = this.queryPlayers()
+		players, err = sq.queryPlayers()
 		return err
 	})
 
 	return players, err
 }
 
-func (this *ServerQuerier) queryPlayers() ([]*Player, error) {
+func (sq *ServerQuerier) queryPlayers() ([]*Player, error) {
 	// Try to get a successful challenge.
 	rechallenges := 0
-	data, err := this.a2s_players()
+	data, err := sq.a2s_players()
 	for err == ErrConfusedChallengeReply && rechallenges < 3 {
-		data, err = this.a2s_players()
+		data, err = sq.a2s_players()
 		rechallenges++
 	}
 
@@ -433,29 +433,29 @@ func (this *ServerQuerier) queryPlayers() ([]*Player, error) {
 
 	switch int32(binary.LittleEndian.Uint32(data)) {
 	case -1:
-		return this.processPlayers(data, false)
+		return sq.processPlayers(data, false)
 	case -2:
-		full, compressed, err := this.waitForMultiPacketReply(data)
+		full, compressed, err := sq.waitForMultiPacketReply(data)
 		if err != nil {
 			return nil, err
 		}
-		return this.processPlayers(full, compressed)
+		return sq.processPlayers(full, compressed)
 	default:
 		return nil, ErrBadPacketHeader
 	}
 }
 
-func (this *ServerQuerier) a2s_players() ([]byte, error) {
+func (sq *ServerQuerier) a2s_players() ([]byte, error) {
 	data := []byte{
 		0xff, 0xff, 0xff, 0xff,
 		0x55,
 		0xff, 0xff, 0xff, 0xff,
 	}
-	if err := this.socket.Send(data); err != nil {
+	if err := sq.socket.Send(data); err != nil {
 		return nil, err
 	}
 
-	data, err := this.socket.Recv()
+	data, err := sq.socket.Recv()
 	if err != nil {
 		return nil, err
 	}
@@ -493,10 +493,10 @@ func (this *ServerQuerier) a2s_players() ([]byte, error) {
 		0x55,
 		data[5], data[6], data[7], data[8],
 	}
-	if err := this.socket.Send(reply); err != nil {
+	if err := sq.socket.Send(reply); err != nil {
 		return nil, err
 	}
-	return this.socket.Recv()
+	return sq.socket.Recv()
 }
 
 type MultiPacketHeader struct {
@@ -521,19 +521,19 @@ type MultiPacketHeader struct {
 	Payload []byte
 }
 
-func (this *ServerQuerier) decodeMultiPacketHeader(data []byte) *MultiPacketHeader {
+func (sq *ServerQuerier) decodeMultiPacketHeader(data []byte) *MultiPacketHeader {
 	reader := NewPacketReader(data)
 	if reader.ReadInt32() != -2 {
 		panic(ErrBadPacketHeader)
 	}
-	if this.info == nil {
+	if sq.info == nil {
 		panic(ErrUnknownGameEngine)
 	}
 
 	header := &MultiPacketHeader{}
 	header.Id = reader.ReadUint32()
 
-	switch this.info.GameEngine() {
+	switch sq.info.GameEngine() {
 	case GOLDSRC:
 		pkt := reader.ReadUint8()
 		header.PacketNumber = (pkt >> 4) & 0xf
@@ -543,7 +543,7 @@ func (this *ServerQuerier) decodeMultiPacketHeader(data []byte) *MultiPacketHead
 		header.Compressed = (header.Id & uint32(0x80000000)) != 0
 		header.TotalPackets = reader.ReadUint8()
 		header.PacketNumber = reader.ReadUint8()
-		if !this.info.IsPreOrangeBox() {
+		if !sq.info.IsPreOrangeBox() {
 			header.PacketSize = reader.ReadUint16()
 		}
 
@@ -556,8 +556,8 @@ func (this *ServerQuerier) decodeMultiPacketHeader(data []byte) *MultiPacketHead
 	return header
 }
 
-func (this *ServerQuerier) waitForMultiPacketReply(data []byte) ([]byte, bool, error) {
-	header := this.decodeMultiPacketHeader(data)
+func (sq *ServerQuerier) waitForMultiPacketReply(data []byte) ([]byte, bool, error) {
+	header := sq.decodeMultiPacketHeader(data)
 	packets := make([]*MultiPacketHeader, header.TotalPackets)
 	received := 0
 	fullSize := 0
@@ -578,12 +578,12 @@ func (this *ServerQuerier) waitForMultiPacketReply(data []byte) ([]byte, bool, e
 			break
 		}
 
-		data, err := this.socket.Recv()
+		data, err := sq.socket.Recv()
 		if err != nil {
 			return nil, false, err
 		}
 
-		header = this.decodeMultiPacketHeader(data)
+		header = sq.decodeMultiPacketHeader(data)
 	}
 
 	payload := make([]byte, fullSize)
@@ -596,7 +596,7 @@ func (this *ServerQuerier) waitForMultiPacketReply(data []byte) ([]byte, bool, e
 	return payload, packets[0].Compressed, nil
 }
 
-func (this *ServerQuerier) processRules(data []byte, compressed bool) (map[string]string, error) {
+func (sq *ServerQuerier) processRules(data []byte, compressed bool) (map[string]string, error) {
 	reader := NewPacketReader(data)
 
 	if compressed {
@@ -651,7 +651,7 @@ func (this *ServerQuerier) processRules(data []byte, compressed bool) (map[strin
 	return rules, nil
 }
 
-func (this *ServerQuerier) processPlayers(data []byte, compressed bool) ([]*Player, error) {
+func (sq *ServerQuerier) processPlayers(data []byte, compressed bool) ([]*Player, error) {
 	reader := NewPacketReader(data)
 
 	if compressed {
