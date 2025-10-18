@@ -68,11 +68,20 @@ jobs:
             - Concurrent server queries (20 simultaneous)
             
             ### Downloads
+            
+            #### Binaries
             - **Windows**: `Mastersteam-windows-amd64.zip`
             - **Linux (x64)**: `Mastersteam-linux-amd64.tar.gz`
             - **Linux (ARM64)**: `Mastersteam-linux-arm64.tar.gz`
             - **macOS (Intel)**: `Mastersteam-darwin-amd64.tar.gz`
             - **macOS (Apple Silicon)**: `Mastersteam-darwin-arm64.tar.gz`
+            
+            #### Docker Image
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+            docker run -d -p 8080:8080 -e STEAM_API_KEY="YOUR_KEY" ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+            ```
+            See Docker workflow for multi-architecture images (linux/amd64, linux/arm64)
             
             ### Requirements
             - Steam Web API Key (get one at https://steamcommunity.com/dev/apikey)
