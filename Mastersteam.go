@@ -15,14 +15,15 @@ import (
 	"strings"
 	"time"
 
-	batch "github.com/zeno0207/Mastersteam/batch"
-	valve "github.com/zeno0207/Mastersteam/valve"
+	batch "github.com/cyxc1124/Mastersteam/batch"
+	valve "github.com/cyxc1124/Mastersteam/valve"
 )
 
 var (
 	sOutputBuffer bytes.Buffer
 	sNumServers   int64
-	master        *valve.MasterServerQuerier
+	master        valve.MasterQuerier
+	useWebAPI     bool // 是否使用 Steam Web API
 )
 
 /*
@@ -96,20 +97,59 @@ func Log(handler http.Handler) http.Handler {
 	})
 }
 
+// handleQueryError handles query errors and returns appropriate JSON response
+func handleQueryError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	errMsg := err.Error()
+	statusCode := http.StatusInternalServerError
+	userMessage := "Failed to query server list"
+
+	// Check for specific error types
+	if strings.Contains(errMsg, "401") || strings.Contains(errMsg, "403") || strings.Contains(errMsg, "Unauthorized") {
+		statusCode = http.StatusUnauthorized
+		userMessage = "Invalid Steam API Key"
+		log.Printf("⚠️  ERROR: Invalid API Key - Please check your STEAM_API_KEY")
+		log.Printf("   Get a valid key from: https://steamcommunity.com/dev/apikey")
+	} else if strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "EOF") {
+		statusCode = http.StatusGatewayTimeout
+		userMessage = "Steam API request timeout or connection error"
+		log.Printf("⚠️  ERROR: Network error - %s", errMsg)
+	} else if strings.Contains(errMsg, "no such host") || strings.Contains(errMsg, "connection refused") {
+		statusCode = http.StatusServiceUnavailable
+		userMessage = "Cannot connect to Steam API"
+		log.Printf("⚠️  ERROR: Connection error - %s", errMsg)
+	} else {
+		log.Printf("⚠️  ERROR: Query failed - %s", errMsg)
+	}
+
+	w.WriteHeader(statusCode)
+
+	errorResponse := map[string]interface{}{
+		"error":   userMessage,
+		"details": errMsg,
+		"status":  statusCode,
+	}
+
+	json.NewEncoder(w).Encode(errorResponse)
+}
+
 func httpMasterSearch(w http.ResponseWriter, r *http.Request) {
 	uriSegments := strings.Split(r.URL.String(), "/")
 	appID, _ := strconv.Atoi(uriSegments[2])
 	hostname, _ := url.QueryUnescape(uriSegments[3])
 
-	newMasterServerQuerier()
+	newWebAPIQuerier()
 
 	// Set up the filter list.
 	master.FilterAppId(valve.AppId(appID))
 	master.FilterName(hostname)
 
-	newServerQuerier()
-
-	//defer master.Close()
+	err := newServerQuerier()
+	if err != nil {
+		handleQueryError(w, err)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	fmt.Fprintf(w, "%s", sOutputBuffer.String())
@@ -119,28 +159,31 @@ func httpServer(w http.ResponseWriter, r *http.Request) {
 	uriSegments := strings.Split(r.URL.String(), "/")
 	host, _ := url.QueryUnescape(uriSegments[2])
 
-	newMasterServerQuerier()
+	newWebAPIQuerier()
 
 	master.FilterGameaddr(host)
 
-	newServerQuerier()
-
-	//defer master.Close()
+	err := newServerQuerier()
+	if err != nil {
+		handleQueryError(w, err)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	fmt.Fprintf(w, "%s", sOutputBuffer.String())
 }
 
-func newMasterServerQuerier() {
-	m, err := valve.NewMasterServerQuerier(valve.MasterServer)
+func newWebAPIQuerier() {
+	// Create Steam Web API querier
+	m, err := valve.NewSteamWebAPIQuerier(valve.SteamAPIKey)
 	if err != nil {
-		log.Printf("Could not query master: %s", err.Error())
+		log.Printf("ERROR: Failed to create Steam Web API querier: %s", err.Error())
+		return
 	}
 	master = m
-	//defer m.Close()
 }
 
-func newServerQuerier() {
+func newServerQuerier() error {
 	flagTimeout := time.Second * 3
 	flagJ := 20
 	sNumServers = 0
@@ -219,8 +262,8 @@ func newServerQuerier() {
 	})
 
 	if err != nil {
-		log.Printf("Could not query the master: %s\n", err.Error())
-		os.Exit(1)
+		log.Printf("Failed to query server list: %s\n", err.Error())
+		return err
 	}
 
 	// Wait for batch processing to complete.
@@ -235,10 +278,46 @@ func newServerQuerier() {
 	sOutputBuffer.WriteString("}\n")
 	//BOTTOM OF JSON FILE
 
+	return nil
+}
+
+func init() {
+	// Read Steam API Key from environment variable
+	valve.SteamAPIKey = os.Getenv("STEAM_API_KEY")
+
+	if valve.SteamAPIKey == "" {
+		log.Printf("⚠️  ERROR: STEAM_API_KEY environment variable not set")
+		log.Printf("")
+		log.Printf("This service requires a Steam Web API Key to function")
+		log.Printf("")
+		log.Printf("Get your API Key:")
+		log.Printf("  1. Visit: https://steamcommunity.com/dev/apikey")
+		log.Printf("  2. Log in with your Steam account")
+		log.Printf("  3. Domain: localhost")
+		log.Printf("  4. Copy the generated API Key")
+		log.Printf("")
+		log.Printf("Set the key:")
+		log.Printf("  PowerShell:  $env:STEAM_API_KEY=\"YOUR_KEY\"")
+		log.Printf("  Linux/macOS: export STEAM_API_KEY=\"YOUR_KEY\"")
+		log.Printf("")
+		log.Fatal("Cannot start service: Missing STEAM_API_KEY")
+	}
+
+	useWebAPI = true
+	log.Printf("✓ Steam API Key configured")
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	log.Printf("🚀 Mastersteam service starting")
+	log.Printf("   Query mode: Steam Web API")
+	log.Printf("   Listening on port: 8080")
+	log.Printf("")
+	log.Printf("API Endpoints:")
+	log.Printf("   GET /search/[APP_ID]/[NAME]")
+	log.Printf("   GET /server/[IP]")
+	log.Printf("")
 
 	http.HandleFunc("/search/", httpMasterSearch)
 	http.HandleFunc("/server/", httpServer)
