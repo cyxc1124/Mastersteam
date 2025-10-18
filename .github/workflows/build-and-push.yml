@@ -1,0 +1,124 @@
+name: Build and Push to GHCR
+
+on:
+  push:
+    branches: 
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches: 
+      - master
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Get full history for version info
+
+      - name: Extract version metadata
+        id: version
+        run: |
+          # Get Git information
+          GIT_COMMIT=$(git rev-parse HEAD)
+          GIT_BRANCH=${GITHUB_REF#refs/heads/}
+          GIT_TAG=""
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BUILD_NUMBER=${{ github.run_number }}
+          
+          # Extract tag name if this is a tag push
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            GIT_TAG=${GITHUB_REF#refs/tags/}
+            GIT_BRANCH=""
+          fi
+          
+          # Set output variables
+          echo "git-commit=${GIT_COMMIT}" >> $GITHUB_OUTPUT
+          echo "git-branch=${GIT_BRANCH}" >> $GITHUB_OUTPUT
+          echo "git-tag=${GIT_TAG}" >> $GITHUB_OUTPUT
+          echo "build-time=${BUILD_TIME}" >> $GITHUB_OUTPUT
+          echo "build-number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          
+          # Print information
+          echo "Git Tag: ${GIT_TAG}"
+          echo "Git Branch: ${GIT_BRANCH}"
+          echo "Git Commit: ${GIT_COMMIT:0:8}"
+          echo "Build Time: ${BUILD_TIME}"
+          echo "Build Number: ${BUILD_NUMBER}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Set latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Set version number for tags (v1.0.0)
+            type=ref,event=tag
+            # Set branch name (master)
+            type=ref,event=branch
+            # Set pr-number for PRs (pr-123)
+            type=ref,event=pr
+            # Set SHA short version for precise version control (62a0c2d)
+            type=sha,format=short
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_TAG=${{ steps.version.outputs.git-tag }}
+            GIT_COMMIT=${{ steps.version.outputs.git-commit }}
+            GIT_BRANCH=${{ steps.version.outputs.git-branch }}
+            BUILD_TIME=${{ steps.version.outputs.build-time }}
+            BUILD_NUMBER=${{ steps.version.outputs.build-number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+      
+      - name: Build Summary
+        run: |
+          echo "## Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag**: ${{ steps.version.outputs.git-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Branch**: ${{ steps.version.outputs.git-branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Commit**: ${{ steps.version.outputs.git-commit }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Time**: ${{ steps.version.outputs.build-time }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Number**: ${{ steps.version.outputs.build-number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+
