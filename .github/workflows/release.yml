@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Build for Windows AMD64
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o Mastersteam-windows-amd64.exe
+          zip Mastersteam-windows-amd64.zip Mastersteam-windows-amd64.exe
+      
+      - name: Build for Linux AMD64
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o Mastersteam-linux-amd64
+          tar -czvf Mastersteam-linux-amd64.tar.gz Mastersteam-linux-amd64
+      
+      - name: Build for Linux ARM64
+        run: |
+          GOOS=linux GOARCH=arm64 go build -o Mastersteam-linux-arm64
+          tar -czvf Mastersteam-linux-arm64.tar.gz Mastersteam-linux-arm64
+      
+      - name: Build for macOS AMD64
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -o Mastersteam-darwin-amd64
+          tar -czvf Mastersteam-darwin-amd64.tar.gz Mastersteam-darwin-amd64
+      
+      - name: Build for macOS ARM64
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o Mastersteam-darwin-arm64
+          tar -czvf Mastersteam-darwin-arm64.tar.gz Mastersteam-darwin-arm64
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            Mastersteam-windows-amd64.zip
+            Mastersteam-linux-amd64.tar.gz
+            Mastersteam-linux-arm64.tar.gz
+            Mastersteam-darwin-amd64.tar.gz
+            Mastersteam-darwin-arm64.tar.gz
+          body: |
+            ## Mastersteam ${{ steps.get_version.outputs.VERSION }}
+            
+            ### Features
+            - Steam Web API integration for server queries
+            - Improved error handling (service stays running on errors)
+            - Support for all Steam games with dedicated servers
+            - RESTful JSON API endpoints
+            - Concurrent server queries (20 simultaneous)
+            
+            ### Downloads
+            - **Windows**: `Mastersteam-windows-amd64.zip`
+            - **Linux (x64)**: `Mastersteam-linux-amd64.tar.gz`
+            - **Linux (ARM64)**: `Mastersteam-linux-arm64.tar.gz`
+            - **macOS (Intel)**: `Mastersteam-darwin-amd64.tar.gz`
+            - **macOS (Apple Silicon)**: `Mastersteam-darwin-arm64.tar.gz`
+            
+            ### Requirements
+            - Steam Web API Key (get one at https://steamcommunity.com/dev/apikey)
+            
+            ### Quick Start
+            ```bash
+            # Set your API key
+            export STEAM_API_KEY="YOUR_API_KEY"
+            
+            # Run the service
+            ./Mastersteam
+            ```
+            
+            ### API Endpoints
+            - `GET /search/[APP_ID]/[NAME]` - Search servers by game and name
+            - `GET /server/[IP]` - Get server info by IP address
+            
+            ### Changes
+            See commit history for detailed changes.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
