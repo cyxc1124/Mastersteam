@@ -1,0 +1,25 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+LICENSE
+
+# CI/CD
+.github
+
+# Build artifacts
+*.exe
+Mastersteam
+*.tar.gz
+*.zip
+
+# IDE
+.vscode
+.idea
+
+# Temporary files
+*.log
+*.tmp
+
