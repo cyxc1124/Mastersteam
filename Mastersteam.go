@@ -32,7 +32,6 @@ var (
 	sOutputBuffer bytes.Buffer
 	sNumServers   int64
 	master        valve.MasterQuerier
-	useWebAPI     bool
 )
 
 /*
@@ -312,7 +311,6 @@ func init() {
 		log.Fatal("Cannot start service: Missing STEAM_API_KEY")
 	}
 
-	useWebAPI = true
 	log.Printf("✓ Steam API Key configured")
 }
 
