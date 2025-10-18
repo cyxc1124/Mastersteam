@@ -19,11 +19,20 @@ import (
 	valve "github.com/cyxc1124/Mastersteam/valve"
 )
 
+// Version information (set by build flags)
+var (
+	GitTag      = "dev"
+	GitCommit   = "unknown"
+	GitBranch   = "unknown"
+	BuildTime   = "unknown"
+	BuildNumber = "0"
+)
+
 var (
 	sOutputBuffer bytes.Buffer
 	sNumServers   int64
 	master        valve.MasterQuerier
-	useWebAPI     bool // 是否使用 Steam Web API
+	useWebAPI     bool
 )
 
 /*
@@ -311,6 +320,9 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	log.Printf("🚀 Mastersteam service starting")
+	log.Printf("   Version: %s", GitTag)
+	log.Printf("   Commit: %s", GitCommit)
+	log.Printf("   Build Time: %s", BuildTime)
 	log.Printf("   Query mode: Steam Web API")
 	log.Printf("   Listening on port: 8080")
 	log.Printf("")
