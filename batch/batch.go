@@ -55,39 +55,39 @@ func NewBatchProcessor(callback Callback, maxTasks int) *BatchProcessor {
 }
 
 // Adds a batch to the batch processor.
-func (this *BatchProcessor) AddBatch(batch Batch) {
-	this.batchQueue <- batch
+func (bp *BatchProcessor) AddBatch(batch Batch) {
+	bp.batchQueue <- batch
 }
 
 // Signals that no more batches are incoming, and then waits for batch
 // processing to complete.
-func (this *BatchProcessor) Finish() {
-	this.send_stop(false)
+func (bp *BatchProcessor) Finish() {
+	bp.send_stop(false)
 }
 
 // Forcefully terminates batch processing. This only shuts down the worker
 // routine. Individual processing tasks will continue.
-func (this *BatchProcessor) Terminate() {
-	this.send_stop(true)
+func (bp *BatchProcessor) Terminate() {
+	bp.send_stop(true)
 }
 
-func (this *BatchProcessor) send_stop(terminate bool) {
+func (bp *BatchProcessor) send_stop(terminate bool) {
 	// Don't re-enter this function.
-	if this.stopped {
+	if bp.stopped {
 		return
 	}
-	this.stopped = true
+	bp.stopped = true
 
 	// Signal to the processing routine that it should stop.
-	this.stopCommand <- terminate
+	bp.stopCommand <- terminate
 
 	// Wait for it to return.
-	<-this.finishedSignal
+	<-bp.finishedSignal
 }
 
 // This must only be invoked from enqueueBatch() or waitForBatches().
-func (this *BatchProcessor) enqueueItem(item interface{}) {
-	this.outstanding++
+func (bp *BatchProcessor) enqueueItem(item interface{}) {
+	bp.outstanding++
 
 	// Avoid entraining local state by passing everything through the closure.
 	go (func(callback Callback, taskDone chan bool, item interface{}) {
@@ -96,74 +96,74 @@ func (this *BatchProcessor) enqueueItem(item interface{}) {
 		})()
 
 		callback(item)
-	})(this.callback, this.taskDone, item)
+	})(bp.callback, bp.taskDone, item)
 }
 
 // This must only be invoked from waitForBatches(). It enqueues tasks available
 // in a batch.
-func (this *BatchProcessor) enqueueBatch(batch Batch) {
+func (bp *BatchProcessor) enqueueBatch(batch Batch) {
 	index := 0
 
 	// Enqueue everything into goroutines.
-	for this.outstanding < this.maxTasks && index < batch.Len() {
-		this.enqueueItem(batch.Item(index))
+	for bp.outstanding < bp.maxTasks && index < batch.Len() {
+		bp.enqueueItem(batch.Item(index))
 		index++
 	}
 
 	// Add any remaining items to the worklist.
 	for i := index; i < batch.Len(); i++ {
-		this.worklist = append(this.worklist, batch.Item(i))
+		bp.worklist = append(bp.worklist, batch.Item(i))
 	}
 }
 
 // This should only be called from processBatch().
-func (this *BatchProcessor) workRemaining() bool {
-	return len(this.worklist) > 0 || this.outstanding > 0
+func (bp *BatchProcessor) workRemaining() bool {
+	return len(bp.worklist) > 0 || bp.outstanding > 0
 }
 
 // This runs in its own goroutine.
-func (this *BatchProcessor) waitForBatches() {
+func (bp *BatchProcessor) waitForBatches() {
 	// Setup local state.
 	stopped := false
 	terminated := false
 
 	for {
 		select {
-		case batch := <-this.batchQueue:
-			this.enqueueBatch(batch)
+		case batch := <-bp.batchQueue:
+			bp.enqueueBatch(batch)
 
-		case <-this.taskDone:
+		case <-bp.taskDone:
 			// A single task has completed.
-			this.outstanding--
+			bp.outstanding--
 
-			if len(this.worklist) > 0 {
+			if len(bp.worklist) > 0 {
 				// Pop an item off the worklist. This is unreachable after
 				// Terminate().
-				item := this.worklist[len(this.worklist)-1]
-				this.worklist = this.worklist[:len(this.worklist)-1]
+				item := bp.worklist[len(bp.worklist)-1]
+				bp.worklist = bp.worklist[:len(bp.worklist)-1]
 
-				this.enqueueItem(item)
+				bp.enqueueItem(item)
 				continue
 			}
 
-			if !this.workRemaining() && stopped {
+			if !bp.workRemaining() && stopped {
 				// If there's no work left to do, and the parent thread is
 				// waiting on us to finish, then leave now.
 				if !terminated {
-					this.finishedSignal <- true
+					bp.finishedSignal <- true
 				}
 				return
 			}
 
-		case terminated = <-this.stopCommand:
+		case terminated = <-bp.stopCommand:
 			stopped = true
 
 			if terminated {
 				// Detach the worklist so we don't enqueue anything else. We
 				// do notify the parent thread early, since it has no reason
 				// to wait on us.
-				this.worklist = nil
-				this.finishedSignal <- true
+				bp.worklist = nil
+				bp.finishedSignal <- true
 
 				// If outstanding is 0, we can exit. Otherwise, there's a
 				// possible deadlock: tasks could keep pumping into taskDone,
@@ -174,13 +174,13 @@ func (this *BatchProcessor) waitForBatches() {
 				// This isn't strictly necessary since the buffering size of
 				// the task channel == max number of tasks, but we do it
 				// anyway for safety.
-				if this.outstanding == 0 {
+				if bp.outstanding == 0 {
 					return
 				}
 			}
 
-			if !this.workRemaining() {
-				this.finishedSignal <- true
+			if !bp.workRemaining() {
+				bp.finishedSignal <- true
 				return
 			}
 		}
