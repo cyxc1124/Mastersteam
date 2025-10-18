@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  mastersteam:
+    build: .
+    image: mastersteam:latest
+    container_name: mastersteam
+    ports:
+      - "8080:8080"
+    environment:
+      - STEAM_API_KEY=${STEAM_API_KEY}
+    restart: unless-stopped
