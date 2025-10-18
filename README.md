@@ -1,21 +1,65 @@
 Mastersteam
 =======
 
-Mastersteam is a web api for querying servers from the Valve Master Server List. 
-it's lightweight and fast
+Mastersteam is a web API for querying servers from the Valve game server list using **Steam Web API**. 
+It's lightweight, fast, and reliable!
 
-Valve's master server has a rate limit of about 15 queries per minute, and returns a batch of ~220 servers for each query. For a popular game, it can take a long time (around ten minutes) to retrieve its entire server list. Mastersteam will query individual game servers in the background to lessen the overall waiting time. At the moment it will process 20 servers in the background, concurrently. Go's scheduler is still weak so it's not recommended to use more.
+## ✨ Features
 
-Usage
------
-You can use Mastersteam either across all of Half-Life 1 or Half-Life 2, or with a specific list of Application IDs. For a full list of Application IDs, see: https://developer.valvesoftware.com/wiki/Steam_Application_IDs
+- 🔥 **Steam Web API** - Uses official Steam Web API (Legacy UDP Master Server is deprecated)
+- ⚡ **Fast & Concurrent** - Queries 20 servers simultaneously
+- 🎮 **All Steam Games** - Supports any game with dedicated servers
+- 📊 **JSON API** - RESTful endpoints with JSON responses
+- 🔍 **Rich Data** - Server info, player counts, online players, and more
 
-To start the webservice on port 8080
+## ⚠️ Important
+
+**Steam API Key Required** - The legacy UDP Master Server (hl2master.steampowered.com:27011) is no longer reliable. 
+This version requires a Steam Web API key to function.
+
+Quick Start
+-----------
+
+### 1. Get Steam API Key
+
+Visit: https://steamcommunity.com/dev/apikey
+- Log in with your Steam account
+- Domain: `localhost` (or your domain)
+- Copy the generated API key
+
+### 2. Run the Service
+
+**Windows (PowerShell):**
+```powershell
+$env:STEAM_API_KEY="YOUR_API_KEY_HERE"
+go run Mastersteam.go
 ```
-$ go get github.com/TowelSoftware/Mastersteam
-$ go build
-$ Mastersteam
+
+**Linux/macOS:**
+```bash
+export STEAM_API_KEY="YOUR_API_KEY_HERE"
+go run Mastersteam.go
 ```
+
+**Or build first:**
+```bash
+go build
+export STEAM_API_KEY="YOUR_API_KEY_HERE"
+./Mastersteam
+```
+
+### 3. Test
+
+Open browser or use curl:
+```bash
+# Search CS:GO servers
+http://localhost:8080/search/730/*
+
+# Search by IP
+http://localhost:8080/server/8.8.8.8
+```
+
+For Application IDs, see: https://developer.valvesoftware.com/wiki/Steam_Application_IDs
 
 You can also use this it in docker.
 https://github.com/TowelSoftware/Mastersteam-docker
