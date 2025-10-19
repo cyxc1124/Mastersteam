@@ -182,10 +182,11 @@ curl "http://localhost:8080/server/192.168.1.1:27015"
 ```json
 {
   "error": "Invalid Steam API Key",
-  "details": "invalid API key (status 403): your Steam API key is invalid or expired",
   "status": 403
 }
 ```
+
+**Note**: For security reasons, error responses only include user-friendly error messages and do not expose technical details that might leak sensitive information. Detailed error information is logged on the server side.
 
 ## 🛠️ Configuration
 
