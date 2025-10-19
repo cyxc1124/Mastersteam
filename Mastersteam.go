@@ -89,9 +89,22 @@ func addJSON(hostAndPort string, obj interface{}) {
 }
 
 func addError(hostAndPort string, err error) {
+	// 记录详细错误到日志
+	log.Printf("⚠️  Server query error [%s]: %s", hostAndPort, err.Error())
+
+	// 只返回通用错误消息给用户，不暴露敏感信息
+	userFriendlyError := "Query failed"
+	if strings.Contains(err.Error(), "timeout") {
+		userFriendlyError = "Connection timeout"
+	} else if strings.Contains(err.Error(), "connection refused") {
+		userFriendlyError = "Connection refused"
+	} else if strings.Contains(err.Error(), "no route to host") {
+		userFriendlyError = "Host unreachable"
+	}
+
 	addJSON(hostAndPort, &ErrorObject{
 		IP:    hostAndPort,
-		Error: err.Error(),
+		Error: userFriendlyError,
 	})
 }
 
@@ -133,10 +146,10 @@ func handleQueryError(w http.ResponseWriter, err error) {
 
 	w.WriteHeader(statusCode)
 
+	// 只返回友好的错误消息给用户，不包含敏感的技术细节
 	errorResponse := map[string]interface{}{
-		"error":   userMessage,
-		"details": errMsg,
-		"status":  statusCode,
+		"error":  userMessage,
+		"status": statusCode,
 	}
 
 	json.NewEncoder(w).Encode(errorResponse)
