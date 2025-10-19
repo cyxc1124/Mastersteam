@@ -100,12 +100,14 @@ func (q *SteamWebAPIQuerier) Query(callback MasterQueryCallback) error {
 	// Send HTTP request
 	resp, err := q.client.Get(apiURL)
 	if err != nil {
-		return fmt.Errorf("failed to query Steam Web API: %w", err)
+		// 不使用 %w 包装错误，避免泄露包含API Key的URL
+		return fmt.Errorf("failed to query Steam Web API: connection error")
 	}
 	defer resp.Body.Close()
 
 	// Check HTTP status code
 	if resp.StatusCode != http.StatusOK {
+		// 读取响应体用于日志记录，但不返回给用户
 		body, _ := io.ReadAll(resp.Body)
 
 		// Provide specific error messages based on status code
@@ -117,14 +119,19 @@ func (q *SteamWebAPIQuerier) Query(callback MasterQueryCallback) error {
 		case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
 			return fmt.Errorf("steam API service error (status %d): Steam servers may be down or experiencing issues", resp.StatusCode)
 		default:
-			return fmt.Errorf("steam Web API error (status %d): %s", resp.StatusCode, string(body))
+			// 记录详细错误到日志，但不返回给用户
+			if len(body) > 0 {
+				fmt.Printf("Steam Web API error details (status %d): %s\n", resp.StatusCode, string(body))
+			}
+			return fmt.Errorf("steam Web API error (status %d): request failed", resp.StatusCode)
 		}
 	}
 
 	// Parse JSON response
 	var result steamWebAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("failed to decode Steam Web API response: %w", err)
+		// 不使用 %w 包装错误，避免泄露响应细节
+		return fmt.Errorf("failed to decode Steam Web API response: invalid JSON format")
 	}
 
 	// Convert to ServerList format
